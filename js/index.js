@@ -23,40 +23,50 @@ var milkcca_user_stream = milkcocoa.dataStore('user');
 // 'game'はゲームのスタート・終了のタイミングを管理
 var milkcca_game_stream = milkcocoa.dataStore('game');
 
+// 自分が何番目のプレイヤーかを示す値
 var player_num;
+
+// 今何人
+var room_num;
+
 var timeId;
 
 // プレイヤーの部屋管理を行う処理
 (function () {
-    milkcca_user_stream.stream().size(1).next(function(err, data) {
-        //もし取ってきたデータが0の場合 userNum:1を登録する。
-        if(data.length <= 0){
-            milkcca_user_stream.push({userNum: 1});
-            player_num = 1;
+    milkcca_user_stream.get("user_num", function (err, data) {
+        if (err) {
+            // 初回(not foundがerrに入る)はデータがないので1で初期化
+            if (err === "not found") {
+                milkcca_user_stream.set("user_num", {
+                    "userNum": "1"
+                });
+                player_num = 1;
+            } else {
+                console.log(err);
+            }
         }
         else {
-            player_num = data[0].value.userNum + 1;
+            // 接続数を取得し+1する
+            player_num = parseInt(data.value.userNum, 10) + 1;
 
-            switch (player_num) {
-                case 3:
-                default:
-                    alert("すんません、いま満室です");
-                    $("body").html("開くまで待っててね");
-                    break;
-                case 2:
-                    milkcca_user_stream.push({userNum: 2});
-                    break;
-                case 1:
-                    milkcca_user_stream.push({userNum: 1});
-            }
+            milkcca_user_stream.set("user_num", {
+                "userNum": player_num
+            });
         }
         $("#player_num").html(player_num);
     });
 }());
 
+milkcca_user_stream.on("set", function (set_data) {
+    room_num = parseInt(set_data.value.userNum, 10);
+});
+
 // ウィンドウを閉じたらuserNumに格納されている変数を一つ減らす
 $(window).on("beforeunload", function () {
-    milkcca_user_stream.push({userNum: player_num - 1});
+    player_num--;
+    milkcca_user_stream.set("user_num", {
+        "userNum": player_num
+    });
 });
 
 // STARTボタンを押したらカウントダウンを始める...！
